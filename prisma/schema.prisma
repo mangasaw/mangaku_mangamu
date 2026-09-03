@@ -1,0 +1,95 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  username      String    @unique
+  password      String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  library       Library[]
+  downloadTokens DownloadToken[]
+  
+  @@map("users")
+}
+
+model Series {
+  id                    String    @id @default(uuid())
+  title                 String
+  titleAlt              String?
+  description           String    @db.Text
+  coverImage            String
+  author                String
+  artist                String
+  status                String    // ongoing, completed, hiatus
+  licenseStatus         String    // original, partnership, licensed
+  allowOfflineDownload  Boolean   @default(false)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  
+  chapters              Chapter[]
+  library               Library[]
+  
+  @@map("series")
+}
+
+model Chapter {
+  id            String    @id @default(uuid())
+  seriesId      String
+  chapterNumber Float
+  title         String?
+  images        String[]  // Array of image URLs
+  isTakedown    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  series        Series    @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  library       Library[]
+  downloadTokens DownloadToken[]
+  
+  @@map("chapters")
+  @@unique([seriesId, chapterNumber])
+}
+
+model Library {
+  id                  String    @id @default(uuid())
+  userId              String
+  seriesId            String
+  lastReadChapterId   String?
+  lastReadPage        Int?
+  scrollPosition      Float?
+  bookmarked          Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  series              Series    @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  lastReadChapter     Chapter?  @relation(fields: [lastReadChapterId], references: [id], onDelete: SetNull)
+  
+  @@map("library")
+  @@unique([userId, seriesId])
+}
+
+model DownloadToken {
+  id          String    @id @default(uuid())
+  userId      String
+  chapterId   String
+  issuedAt    DateTime  @default(now())
+  revoked     Boolean   @default(false)
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapter     Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  
+  @@map("download_tokens")
+}
