@@ -1,0 +1,137 @@
+### 2.9 Offline Reading *(fitur baru, usulan tambahan)*
+
+**Deskripsi:** Memungkinkan user mengunduh chapter ke device untuk dibaca tanpa koneksi internet (commute, area sinyal lemah, hemat kuota).
+
+**User Story:** *Sebagai pembaca (Andi, mahasiswa mobile-first), saya ingin download beberapa chapter sebelum naik kereta/pesawat agar tetap bisa baca tanpa koneksi.*
+
+**Kenapa ini tidak sesederhana caching biasa:**
+PRD §2.2 sudah menetapkan bahwa gambar chapter disajikan lewat **signed URL dengan expiry token** untuk mencegah hotlink/scraping (§2.2 Technical Detail), dan §3.1 secara eksplisit menyebut service worker PWA di MVP hanya untuk *app shell*, bukan full offline reading. Artinya fitur ini butuh jalur terpisah dari reader online biasa — bukan sekadar "cache response fetch".
+
+---
+
+#### Requirements Fungsional
+
+- Tombol "Download" di level chapter (series detail page & reader) dan opsi "Download semua chapter belum dibaca" di level series
+- Download manager screen (di dalam Library): list chapter terunduh, progress bar per download, total storage terpakai, tombol hapus per-chapter/per-series/hapus semua
+- Reader otomatis deteksi: jika chapter tersedia offline & device tidak ada koneksi → serve dari local storage tanpa error
+- Indikator storage: tampilkan estimasi kuota terpakai vs tersedia (pakai `navigator.storage.estimate()`), warning saat mendekati limit
+- Reading progress yang terjadi saat offline tetap tercatat lokal, lalu di-sync ke server saat online kembali
+- Auto-cleanup: chapter offline yang sudah expired (lihat kebijakan expiry di bawah) dihapus otomatis dengan notifikasi ke user
+
+**Batasan kebijakan (mengikuti §10 lisensi konten):**
+- Hanya series dengan `license_status` yang mengizinkan (`original`, `partnership`) yang boleh di-download. Series berstatus `licensed` dari pihak ketiga default **tidak bisa** di-download offline kecuali rights holder mengizinkan — ini mencegah masalah hukum yang sama seperti alasan anti-hotlink di §2.2
+- Jika chapter kena takedown (§5.3) setelah ter-download, sistem mengirim sinyal "revoke" saat device online berikutnya, dan copy lokal dihapus paksa
+
+---
+
+#### Perubahan Data Model
+
+**series** — tambah kolom:
+| Field | Type | Keterangan |
+|---|---|---|
+| allow_offline_download | BOOLEAN | DEFAULT false, hanya true untuk `license_status = original/partnership` |
+
+**chapters** — tambah kolom:
+| Field | Type | Keterangan |
+|---|---|---|
+| is_takedown | BOOLEAN | DEFAULT false — dipakai untuk trigger revoke offline copy |
+
+**download_tokens** (tabel baru, di server, bukan di client):
+| Field | Type | Keterangan |
+|---|---|---|
+| id | UUID | PK |
+| user_id | UUID | FK → users.id |
+| chapter_id | UUID | FK → chapters.id |
+| issued_at | TIMESTAMP | |
+| revoked | BOOLEAN | DEFAULT false — di-set true saat takedown/DMCA |
+
+**IndexedDB (client-side, skema per device):**
+```
+DB: offline_reader
+├── chapters_meta (keyPath: chapterId)
+│     { chapterId, seriesId, seriesTitle, chapterNumber,
+│       downloadedAt, sizeBytes, pageCount, status: 'complete'|'partial'|'revoked' }
+├── chapter_images (keyPath: [chapterId, pageIndex])
+│     { chapterId, pageIndex, blob, width, height }
+├── reading_progress_offline (keyPath: chapterId)
+│     { chapterId, lastPage, scrollPosition, updatedAt, synced: boolean }
+```
+
+---
+
+#### Perubahan API
+
+| Method | Endpoint | Deskripsi |
+|---|---|---|
+| POST | `/api/v1/chapters/:chapterId/download-token` | Terbitkan token download (long-lived, ±7 hari, berbeda dari signed URL streaming yang short-lived) — server cek `allow_offline_download` dan kuota user dulu |
+| GET | `/api/v1/chapters/:chapterId/download-manifest` | Return list URL gambar (pakai download-token) + checksum per gambar, untuk resume-able download |
+| POST | `/api/v1/library/sync-progress` | Batch endpoint — terima array progress yang terjadi offline, upsert ke `library.last_read_chapter_id` + reading position |
+| GET | `/api/v1/downloads/revoked` | Client polling/check saat online: daftar `chapterId` yang harus dihapus lokal (karena takedown/revoke) |
+
+Catatan: download-token **tidak sama** dengan signed URL streaming biasa — expiry lebih panjang (untuk background download yang bisa terputus & di-resume), tapi tetap terikat ke `user_id` (bukan public URL) dan bisa di-revoke individual lewat `download_tokens.revoked`, beda dari signed URL streaming yang cukup expired otomatis.
+
+---
+
+#### Alur Logic — Download Chapter
+
+```
+1. User tap "Download" pada chapter X
+2. Client cek quota lokal (navigator.storage.estimate())
+   → jika sisa storage < estimasi ukuran chapter → tampilkan warning, batalkan
+3. Client POST /chapters/:id/download-token
+   → server validasi: allow_offline_download == true? user quota belum exceed?
+   → jika ditolak → tampilkan alasan spesifik ("Series ini tidak tersedia untuk offline")
+4. Client GET /chapters/:id/download-manifest (pakai token)
+   → dapat list {url, checksum, order} per halaman
+5. Untuk setiap halaman (fetch paralel terbatas, misal 3 concurrent):
+   a. Fetch image blob
+   b. Verifikasi checksum
+   c. Simpan ke IndexedDB (chapter_images)
+   d. Update progress bar di download manager
+   e. Jika fetch gagal (network drop) → retry 3x dgn backoff, lalu tandai status 'partial'
+      supaya user bisa resume nanti tanpa download ulang dari awal
+6. Setelah semua halaman tersimpan → chapters_meta.status = 'complete'
+7. Tampilkan badge "Tersedia offline" di card chapter
+```
+
+#### Alur Logic — Baca Offline & Sync
+
+```
+1. Reader dibuka untuk chapter X
+2. Cek: navigator.onLine === false ATAU fetch streaming gagal (timeout)
+   → fallback: load images dari IndexedDB (chapter_images) by chapterId
+3. Saat user scroll/ganti halaman → tulis ke reading_progress_offline
+   { lastPage, scrollPosition, synced: false }
+   (debounce ~2 detik, sama seperti reading progress online di §2.2)
+4. Saat device kembali online (event 'online' / background sync API):
+   a. Ambil semua reading_progress_offline WHERE synced = false
+   b. POST batch ke /api/v1/library/sync-progress
+   c. Jika sukses → set synced = true
+   d. Sekalian GET /api/v1/downloads/revoked
+      → hapus chapter_images + chapters_meta untuk chapterId yang direvoke
+      → notifikasi user: "Chapter X tidak lagi tersedia offline"
+```
+
+---
+
+#### Technical Notes
+
+- **Service worker**: extend dari app-shell caching (§3.1) menjadi tambahan `Background Sync API` untuk retry sync progress otomatis saat koneksi balik, tanpa perlu app dibuka
+- **Storage strategy**: pakai `IndexedDB` (bukan Cache Storage API) karena butuh query by chapterId/seriesId dan menyimpan metadata terstruktur, bukan cuma request-response pairs
+- **Concurrency limit**: max 3 gambar diunduh paralel per chapter untuk hindari saturasi bandwidth di koneksi lambat (selaras dengan progressive loading di §2.2)
+- **Compression**: gambar offline tetap pakai WebP yang sama dari CDN (§3.1), tidak perlu re-compress di client
+- **Kuota default**: soft limit misal 2GB atau 50 chapter per user (configurable), dicek di client sebelum download dan divalidasi ulang di server saat issue token
+- **Keamanan**: blob di IndexedDB tidak dienkripsi di MVP (trade-off kompleksitas vs risiko — user yang extract IndexedDB tetap perlu effort teknis). Jika perlu proteksi lebih ketat di fase lanjut, evaluasi opsi encrypt-at-rest pakai Web Crypto API dengan key per-device
+
+#### Edge Cases
+
+- User uninstall app / clear browser data → semua data offline hilang (expected, tidak perlu recovery khusus)
+- Chapter di-update/diedit setelah didownload (misal typo translasi diperbaiki) → versi offline tetap versi lama sampai user re-download manual; tidak auto-update untuk hindari boros bandwidth
+- User pindah device → data offline tidak portable (offline storage selalu per-device, hanya reading progress yang sync via akun)
+- Storage penuh saat download berlangsung → hentikan, simpan progress partial, beri opsi hapus chapter lama untuk buat ruang
+
+---
+
+#### Dampak ke Rencana Fase (§7)
+
+Disarankan masuk **Phase 2 (Enhancement)**, setelah reading progress sync lintas device stabil — karena fitur ini bergantung pada endpoint sync progress yang sama, dan butuh keputusan bisnis dulu soal `license_status` mana yang boleh offline (§10).
