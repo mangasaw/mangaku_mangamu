@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import AuthProvider from './providers'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import { PopupModal } from '@/components/PopupModal'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -20,7 +21,10 @@ export default function RootLayout({
     <html lang="id">
       <body className={`${inter.className} bg-gray-50 dark:bg-dark-900 text-gray-900 dark:text-gray-100 transition-colors`}>
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            {children}
+            <PopupModal />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
