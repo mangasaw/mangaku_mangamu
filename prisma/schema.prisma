@@ -26,6 +26,7 @@ model User {
   
   library       Library[]
   downloadTokens DownloadToken[]
+  sessions       UserSession[]
   
   @@map("users")
 }
@@ -98,4 +99,45 @@ model DownloadToken {
   chapter     Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   
   @@map("download_tokens")
+}
+
+model Ad {
+  id            String    @id @default(uuid())
+  name          String
+  code          String    @db.Text
+  position      AdPosition
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@map("ads")
+}
+
+enum AdPosition {
+  HEADER
+  SIDEBAR_LEFT
+  SIDEBAR_RIGHT
+  BEFORE_CONTENT
+  AFTER_CONTENT
+  FOOTER
+  INLINE
+}
+
+model UserSession {
+  id            String    @id @default(uuid())
+  userId        String
+  sessionToken  String    @unique
+  deviceInfo    String?
+  ipAddress     String?
+  lastActivity  DateTime  @default(now())
+  expiresAt     DateTime
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_sessions")
+  @@index([userId])
+  @@index([sessionToken])
+  @@index([expiresAt])
 }
