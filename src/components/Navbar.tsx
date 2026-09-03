@@ -2,12 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { ThemeToggle } from './ThemeToggle'
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   return (
-    <nav className="bg-white shadow-sm sticky top-0 z-50">
+    <nav className="bg-white dark:bg-dark-800 shadow-sm sticky top-0 z-50 border-b border-gray-200 dark:border-dark-700">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         <div className="flex justify-between items-center h-14 sm:h-16">
           <div className="flex items-center">
@@ -18,23 +19,27 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden sm:flex items-center space-x-2 sm:space-x-4">
-            <Link href="/browse" className="text-sm sm:text-base text-gray-700 hover:text-indigo-600 px-2 py-1 sm:px-0">
+            <Link href="/browse" className="text-sm sm:text-base text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-2 py-1 sm:px-0">
               Browse
             </Link>
-            <Link href="/library" className="text-sm sm:text-base text-gray-700 hover:text-indigo-600 px-2 py-1 sm:px-0">
+            <Link href="/library" className="text-sm sm:text-base text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 px-2 py-1 sm:px-0">
               Library
             </Link>
-            <Link href="/login" className="text-sm sm:text-base text-gray-700 hover:text-indigo-600 px-2 py-1 sm:px-0 bg-indigo-50 hover:bg-indigo-100 rounded-lg px-3 py-1.5">
-              Login
-            </Link>
+            <div className="flex items-center space-x-2">
+              <ThemeToggle />
+              <Link href="/login" className="text-sm sm:text-base text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-800/50 rounded-lg px-3 py-1.5">
+                Login
+              </Link>
+            </div>
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="sm:hidden">
+          <div className="sm:hidden flex items-center space-x-2">
+            <ThemeToggle />
             <button
               type="button"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-indigo-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-dark-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
               aria-expanded="false"
             >
               <span className="sr-only">Open main menu</span>
@@ -69,21 +74,21 @@ export default function Navbar() {
           <div className="pt-2 pb-3 space-y-1">
             <Link
               href="/browse"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-indigo-600 hover:bg-gray-50"
+              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-50 dark:hover:bg-dark-700"
               onClick={() => setIsMenuOpen(false)}
             >
               Browse
             </Link>
             <Link
               href="/library"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-indigo-600 hover:bg-gray-50"
+              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-50 dark:hover:bg-dark-700"
               onClick={() => setIsMenuOpen(false)}
             >
               Library
             </Link>
             <Link
               href="/login"
-              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-indigo-600 hover:bg-gray-50 bg-indigo-50"
+              className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-50 dark:hover:bg-dark-700 bg-indigo-50 dark:bg-indigo-900/30"
               onClick={() => setIsMenuOpen(false)}
             >
               Login
