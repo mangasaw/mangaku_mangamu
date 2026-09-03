@@ -141,3 +141,19 @@ model UserSession {
   @@index([sessionToken])
   @@index([expiresAt])
 }
+
+model FailedLoginAttempt {
+  id            String    @id @default(uuid())
+  email         String
+  ipAddress     String?
+  userAgent     String?
+  attemptedAt   DateTime  @default(now())
+  isLocked      Boolean   @default(false)
+  lockedUntil   DateTime?
+  
+  @@map("failed_login_attempts")
+  @@index([email])
+  @@index([ipAddress])
+  @@index([attemptedAt])
+  @@index([isLocked])
+}
