@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   // JOIN download_tokens ON chapters.id = download_tokens.chapter_id
   // WHERE download_tokens.user_id = ? AND chapters.is_takedown = true
 
-  const revokedChapters = [
+  const revokedChapters: string[] = [
     // Mock: tidak ada chapter yang direvoke untuk demo
     // 'chapter-1-5', // contoh: chapter yang kena takedown
   ]

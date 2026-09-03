@@ -118,7 +118,7 @@ export async function getUnsyncedProgress(): Promise<ReadingProgressOffline[]> {
     const transaction = db.transaction(['reading_progress_offline'], 'readonly')
     const store = transaction.objectStore('reading_progress_offline')
     const index = store.index('synced')
-    const request = index.getAll(false)
+    const request = index.getAll(IDBKeyRange.only(false))
 
     request.onerror = () => reject(request.error)
     request.onsuccess = () => resolve(request.result)
