@@ -1,11 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { MangaPage } from '@/components/OptimizedImage'
 import { useImagePreloader } from '@/components/LazyLoad'
 import { useReadingMode } from '@/contexts/ReadingModeContext'
 import { ReadingModeSelector } from '@/components/ReadingModeSelector'
+import { useGestures } from '@/hooks/useGestures'
 
 export default function ChapterReaderPage({ 
   params 
@@ -17,6 +18,30 @@ export default function ChapterReaderPage({
   const [loading, setLoading] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const { mode } = useReadingMode()
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  // Gesture controls
+  useGestures(contentRef, {
+    onSwipeLeft: () => {
+      if (mode === 'horizontal') {
+        // Next page
+        const nextChapter = parseInt(params.chapterId) + 1
+        window.location.href = `/manga/${params.id}/chapter/${nextChapter}`
+      }
+    },
+    onSwipeRight: () => {
+      if (mode === 'horizontal') {
+        // Previous page
+        const prevChapter = parseInt(params.chapterId) - 1
+        if (prevChapter > 0) {
+          window.location.href = `/manga/${params.id}/chapter/${prevChapter}`
+        }
+      }
+    },
+    onTap: () => {
+      setShowSettings(!showSettings)
+    },
+  })
 
   // Fetch chapter data
   useEffect(() => {
