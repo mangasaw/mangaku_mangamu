@@ -1,13 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { MangaPage } from '@/components/OptimizedImage'
 import { useImagePreloader } from '@/components/LazyLoad'
-import { useReadingMode } from '@/contexts/ReadingModeContext'
-import { ReadingModeSelector } from '@/components/ReadingModeSelector'
-import { ChapterStartAd, InlineAd, ChapterEndAd } from '@/components/AdComponent'
-import { useGestures, useMouseGestures } from '@/hooks/useGestures'
 
 export default function ChapterReaderPage({ 
   params 
@@ -17,11 +13,6 @@ export default function ChapterReaderPage({
   const [currentPage, setCurrentPage] = useState(1)
   const [chapter, setChapter] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [showSettings, setShowSettings] = useState(false)
-  const [zoomLevel, setZoomLevel] = useState(1)
-  const { mode, autoNext } = useReadingMode()
-  const readerRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
 
   // Fetch chapter data
   useEffect(() => {
@@ -50,9 +41,9 @@ export default function ChapterReaderPage({
     window.scrollTo(0, 0)
   }, [params.chapterId])
 
-  // Track current page based on scroll (for vertical/webtoon mode)
+  // Track current page based on scroll
   useEffect(() => {
-    if (!chapter?.images || mode === 'horizontal' || mode === 'double-page') return
+    if (!chapter?.images) return
 
     const handleScroll = () => {
       const scrollPosition = window.scrollY + window.innerHeight / 2
@@ -71,97 +62,7 @@ export default function ChapterReaderPage({
 
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [chapter, mode])
-
-  // Handle horizontal navigation
-  const goToPage = (page: number) => {
-    if (page < 1 || page > totalPages) return
-    setCurrentPage(page)
-    
-    if (mode === 'horizontal' || mode === 'double-page') {
-      const element = document.querySelector(`[data-page="${page}"]`)
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
-      }
-    }
-  }
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      goToPage(currentPage + 1)
-    } else if (autoNext) {
-      // Auto go to next chapter
-      window.location.href = `/manga/${params.id}/chapter/${parseInt(params.chapterId) + 1}`
-    }
-  }
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) {
-      goToPage(currentPage - 1)
-    }
-  }
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        e.preventDefault()
-        handleNextPage()
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        e.preventDefault()
-        handlePrevPage()
-      } else if (e.key === 's' || e.key === 'S') {
-        e.preventDefault()
-        setShowSettings(!showSettings)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentPage, totalPages, mode, showSettings])
-
-  // Gesture controls
-  useGestures(contentRef, {
-    onSwipeLeft: () => {
-      if (mode === 'horizontal' || mode === 'double-page') {
-        handleNextPage()
-      }
-    },
-    onSwipeRight: () => {
-      if (mode === 'horizontal' || mode === 'double-page') {
-        handlePrevPage()
-      }
-    },
-    onTap: () => {
-      setShowSettings(!showSettings)
-    },
-    onDoubleTap: () => {
-      // Toggle zoom
-      setZoomLevel(zoomLevel === 1 ? 1.5 : 1)
-    },
-    onPinchIn: () => {
-      setZoomLevel(Math.max(0.5, zoomLevel - 0.1))
-    },
-    onPinchOut: () => {
-      setZoomLevel(Math.min(3, zoomLevel + 0.1))
-    }
-  })
-
-  // Mouse gestures for desktop
-  useMouseGestures(contentRef, {
-    onTap: () => {
-      // Toggle settings on click
-    },
-    onDoubleTap: () => {
-      setZoomLevel(zoomLevel === 1 ? 1.5 : 1)
-    },
-    onPinchIn: () => {
-      setZoomLevel(Math.max(0.5, zoomLevel - 0.1))
-    },
-    onPinchOut: () => {
-      setZoomLevel(Math.min(3, zoomLevel + 0.1))
-    }
-  })
+  }, [chapter])
 
   if (loading) {
     return (
@@ -189,154 +90,6 @@ export default function ChapterReaderPage({
 
   const totalPages = chapter.images?.length || 0
 
-  // Render content based on reading mode
-  const renderContent = () => {
-    switch (mode) {
-      case 'horizontal':
-        return (
-          <div 
-            ref={contentRef}
-            className="flex overflow-x-auto snap-x snap-mandatory h-screen scrollbar-hide" 
-            style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center' }}
-          >
-            {chapter.images?.map((imageUrl: string, i: number) => (
-              <div 
-                key={i}
-                data-page={i + 1}
-                className="flex-shrink-0 w-full h-full snap-center flex items-center justify-center bg-black"
-              >
-                <MangaPage
-                  src={imageUrl}
-                  alt={`Page ${i + 1}`}
-                  pageNumber={i + 1}
-                  priority={i < 2}
-                />
-                {(i + 1) % 5 === 0 && <InlineAd pageNumber={i + 1} />}
-              </div>
-            ))}
-          </div>
-        )
-      
-      case 'double-page':
-        const pages = chapter.images || []
-        const pairs = []
-        for (let i = 0; i < pages.length; i += 2) {
-          pairs.push(pages.slice(i, i + 2))
-        }
-        
-        return (
-          <div 
-            ref={contentRef}
-            className="flex overflow-x-auto snap-x snap-mandatory h-screen scrollbar-hide"
-            style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'center' }}
-          >
-            {pairs.map((pair, pairIndex) => (
-              <div 
-                key={pairIndex}
-                data-page={(pairIndex * 2) + 1}
-                className="flex-shrink-0 w-full h-full snap-center flex items-center justify-center bg-black gap-1"
-              >
-                {pair.map((imageUrl, idx) => (
-                  <div key={idx} className="flex-1 h-full flex items-center justify-center">
-                    <MangaPage
-                      src={imageUrl}
-                      alt={`Page ${(pairIndex * 2) + idx + 1}`}
-                      pageNumber={(pairIndex * 2) + idx + 1}
-                      priority={pairIndex === 0}
-                    />
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        )
-      
-      case 'webtoon':
-        return (
-          <div 
-            ref={contentRef}
-            className="max-w-full mx-auto bg-black"
-            style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top center' }}
-          >
-            <ChapterStartAd />
-            <div className="space-y-0">
-              {chapter.images?.map((imageUrl: string, i: number) => (
-                <div key={i}>
-                  <div 
-                    data-page={i + 1}
-                    className="w-full"
-                  >
-                    <MangaPage
-                      src={imageUrl}
-                      alt={`Page ${i + 1}`}
-                      pageNumber={i + 1}
-                      priority={i < 2}
-                    />
-                  </div>
-                  {(i + 1) % 5 === 0 && <InlineAd pageNumber={i + 1} />}
-                </div>
-              ))}
-            </div>
-            <ChapterEndAd />
-          </div>
-        )
-      
-      default: // vertical
-        return (
-          <div 
-            ref={contentRef}
-            className="max-w-4xl mx-auto px-4 py-8"
-            style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top center' }}
-          >
-            <ChapterStartAd />
-            <div className="space-y-2">
-              {chapter.images?.map((imageUrl: string, i: number) => (
-                <div key={i}>
-                  <div 
-                    data-page={i + 1}
-                    className="bg-gray-900 rounded-lg overflow-hidden"
-                  >
-                    <MangaPage
-                      src={imageUrl}
-                      alt={`Page ${i + 1}`}
-                      pageNumber={i + 1}
-                      priority={i < 2}
-                    />
-                  </div>
-                  {(i + 1) % 5 === 0 && <InlineAd pageNumber={i + 1} />}
-                </div>
-              ))}
-            </div>
-            <ChapterEndAd />
-
-            {/* Navigation */}
-            <div className="mt-8 flex items-center justify-between bg-gray-900 rounded-lg p-4">
-              <Link
-                href={`/manga/${params.id}/chapter/${parseInt(params.chapterId) - 1}`}
-                className="px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 disabled:opacity-50"
-              >
-                Previous Chapter
-              </Link>
-              
-              <Link
-                href={`/manga/${params.id}`}
-                className="px-6 py-2 border border-gray-700 text-white rounded hover:bg-gray-800"
-              >
-                Chapter List
-              </Link>
-              
-              <Link
-                href={`/manga/${params.id}/chapter/${parseInt(params.chapterId) + 1}`}
-                className="px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-              >
-                Next Chapter
-              </Link>
-            </div>
-          </div>
-        )
-    }
-  }
-
   return (
     <div className="min-h-screen bg-black">
       {/* Reader Header */}
@@ -362,12 +115,6 @@ export default function ChapterReaderPage({
               <span className="text-sm text-gray-400">
                 Page {currentPage} / {totalPages}
               </span>
-              <button 
-                onClick={() => setShowSettings(!showSettings)}
-                className="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700 text-sm"
-              >
-                ⚙️ Settings
-              </button>
               <button className="px-3 py-1 bg-indigo-600 rounded hover:bg-indigo-700 text-sm">
                 Download
               </button>
@@ -376,38 +123,52 @@ export default function ChapterReaderPage({
         </div>
       </div>
 
-      {/* Settings Panel */}
-      {showSettings && (
-        <div className="fixed top-16 right-4 z-40 animate-in slide-in-from-top">
-          <ReadingModeSelector />
-        </div>
-      )}
-
       {/* Reader Content */}
-      {renderContent()}
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="space-y-2">
+          {chapter.images?.map((imageUrl: string, i: number) => (
+            <div 
+              key={i}
+              data-page={i + 1}
+              className="bg-gray-900 rounded-lg overflow-hidden"
+            >
+              <MangaPage
+                src={imageUrl}
+                alt={`Page ${i + 1}`}
+                pageNumber={i + 1}
+                priority={i < 2} // Prioritize first 2 pages
+              />
+            </div>
+          ))}
+        </div>
 
-      {/* Navigation Controls (for horizontal/double-page modes) */}
-      {(mode === 'horizontal' || mode === 'double-page') && (
-        <>
-          <button
-            onClick={handlePrevPage}
-            disabled={currentPage === 1}
-            className="fixed left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-gray-900/80 text-white rounded-full hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed z-30"
+        {/* Navigation */}
+        <div className="mt-8 flex items-center justify-between bg-gray-900 rounded-lg p-4">
+          <Link
+            href={`/manga/${params.id}/chapter/${parseInt(params.chapterId) - 1}`}
+            className="px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 disabled:opacity-50"
           >
-            ←
-          </button>
-          <button
-            onClick={handleNextPage}
-            disabled={currentPage === totalPages}
-            className="fixed right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-gray-900/80 text-white rounded-full hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed z-30"
+            Previous Chapter
+          </Link>
+          
+          <Link
+            href={`/manga/${params.id}`}
+            className="px-6 py-2 border border-gray-700 text-white rounded hover:bg-gray-800"
           >
-            →
-          </button>
-        </>
-      )}
+            Chapter List
+          </Link>
+          
+          <Link
+            href={`/manga/${params.id}/chapter/${parseInt(params.chapterId) + 1}`}
+            className="px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+          >
+            Next Chapter
+          </Link>
+        </div>
+      </div>
 
       {/* Reading Progress Auto-save indicator */}
-      <div className="fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-20">
+      <div className="fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm">
         {loadedCount > 0 && `Preloading ${loadedCount}/3...`}
       </div>
     </div>
