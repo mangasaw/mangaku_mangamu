@@ -50,6 +50,9 @@ export default function ChapterReaderPage({
     window.scrollTo(0, 0)
   }, [params.chapterId])
 
+  // Calculate total pages
+  const totalPages = chapter?.images?.length || 0
+
   // Track current page based on scroll (for vertical/webtoon mode)
   useEffect(() => {
     if (!chapter?.images || mode === 'horizontal' || mode === 'double-page') return
@@ -187,8 +190,6 @@ export default function ChapterReaderPage({
     )
   }
 
-  const totalPages = chapter.images?.length || 0
-
   // Render content based on reading mode
   const renderContent = () => {
     switch (mode) {
@@ -236,7 +237,7 @@ export default function ChapterReaderPage({
                 data-page={(pairIndex * 2) + 1}
                 className="flex-shrink-0 w-full h-full snap-center flex items-center justify-center bg-black gap-1"
               >
-                {pair.map((imageUrl, idx) => (
+                {pair.map((imageUrl: string, idx: number) => (
                   <div key={idx} className="flex-1 h-full flex items-center justify-center">
                     <MangaPage
                       src={imageUrl}
