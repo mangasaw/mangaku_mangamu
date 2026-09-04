@@ -1,6 +1,7 @@
 import Link from 'next/link'
-
 import Navbar from '@/components/Navbar'
+import { MangaCover } from '@/components/OptimizedImage'
+import { LazyLoad } from '@/components/LazyLoad'
 
 export default function BrowsePage() {
   return (
@@ -62,21 +63,24 @@ export default function BrowsePage() {
         {/* Manga Grid - Mobile responsive */}
         <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 px-1">
           {Array.from({ length: 24 }).map((_, i) => (
-            <Link
-              key={i}
-              href={`/manga/${i + 1}`}
-              className="group block"
-            >
-              <div className="aspect-[3/4] bg-gray-200 rounded-lg overflow-hidden mb-1.5 sm:mb-2">
-                <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm sm:text-base">
-                  Cover {i + 1}
+            <LazyLoad key={i} threshold={0.1} rootMargin="400px">
+              <Link
+                href={`/manga/${i + 1}`}
+                className="group block"
+              >
+                <div className="aspect-[3/4] bg-gray-200 rounded-lg overflow-hidden mb-1.5 sm:mb-2">
+                  <MangaCover
+                    src={`https://via.placeholder.com/300x400?text=Cover+${i + 1}`}
+                    alt={`Manga Title ${i + 1}`}
+                    priority={i < 6}
+                  />
                 </div>
-              </div>
-              <h3 className="text-xs xs:text-sm font-medium text-gray-900 group-hover:text-indigo-600 line-clamp-2">
-                Manga Title {i + 1}
-              </h3>
-              <p className="text-xxs xs:text-xs text-gray-500 mt-0.5">Chapter {100 + i}</p>
-            </Link>
+                <h3 className="text-xs xs:text-sm font-medium text-gray-900 group-hover:text-indigo-600 line-clamp-2">
+                  Manga Title {i + 1}
+                </h3>
+                <p className="text-xxs xs:text-xs text-gray-500 mt-0.5">Chapter {100 + i}</p>
+              </Link>
+            </LazyLoad>
           ))}
         </div>
 
