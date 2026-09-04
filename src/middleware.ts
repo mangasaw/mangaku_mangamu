@@ -59,5 +59,8 @@ export const config = {
     '/admin/:path*',
     '/api/admin/:path*',
     '/api/auth/:path*',
+    '/api/popup/:path*',
+    '/api/ads/:path*',
+    '/api/upload/:path*',
   ],
 }
