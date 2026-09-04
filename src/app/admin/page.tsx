@@ -24,6 +24,9 @@ export default function AdminDashboard() {
                 <Link href="/admin/users" className="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-gray-800 whitespace-nowrap">
                   Users
                 </Link>
+                <Link href="/admin/money" className="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-gray-800 whitespace-nowrap">
+                  Money
+                </Link>
               </div>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
@@ -50,6 +53,9 @@ export default function AdminDashboard() {
               </Link>
               <Link href="/admin/users" className="px-2.5 py-1.5 rounded-md text-xs font-medium hover:bg-gray-800 whitespace-nowrap">
                 Users
+              </Link>
+              <Link href="/admin/money" className="px-2.5 py-1.5 rounded-md text-xs font-medium hover:bg-gray-800 whitespace-nowrap">
+                Money
               </Link>
             </div>
           </div>

@@ -161,13 +161,21 @@ model FailedLoginAttempt {
 model Popup {
   id              String    @id @default(uuid())
   title           String?
-  imageUrl        String?
+  mediaUrl        String?   // bisa image, gif, atau video
+  mediaType       MediaType @default(IMAGE) // tipe media
   linkUrl         String?
   isActive        Boolean   @default(false)
   showInterval    Int?      // dalam detik, null = tampil setiap kali
-  displayDuration Int       @default(5) // berapa lama popup tetap muncul (detik)
+  displayDuration Int       @default(5) // berapa lama popup tetap muncul (detik), 0 = manual close only
+  autoClose       Boolean   @default(true) // apakah auto close atau tidak
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   
   @@map("popups")
+}
+
+enum MediaType {
+  IMAGE
+  GIF
+  VIDEO
 }

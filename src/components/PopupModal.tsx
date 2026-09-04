@@ -1,15 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
 
 interface PopupData {
   id: string
   title?: string
-  imageUrl?: string
+  mediaUrl?: string
+  mediaType: 'IMAGE' | 'GIF' | 'VIDEO'
   linkUrl?: string
   showInterval?: number
   displayDuration: number
+  autoClose: boolean
 }
 
 export function PopupModal() {
@@ -54,8 +55,8 @@ export function PopupModal() {
             sessionStorage.setItem(`popup_shown_${id}`, 'true')
           }
 
-          // Auto close setelah displayDuration
-          if (data.popup.displayDuration > 0) {
+          // Auto close setelah displayDuration jika autoClose = true
+          if (data.popup.autoClose && data.popup.displayDuration > 0) {
             setTimeout(() => {
               handleClose()
             }, data.popup.displayDuration * 1000)
@@ -119,13 +120,24 @@ export function PopupModal() {
             </div>
           )}
 
-          {popup.imageUrl && (
+          {popup.mediaUrl && (
             <div className="relative w-full">
-              <img
-                src={popup.imageUrl}
-                alt={popup.title || 'Popup'}
-                className="w-full h-auto max-h-[70vh] object-contain"
-              />
+              {popup.mediaType === 'VIDEO' ? (
+                <video
+                  src={popup.mediaUrl}
+                  className="w-full h-auto max-h-[70vh] object-contain"
+                  controls
+                  autoPlay
+                  muted
+                  loop
+                />
+              ) : (
+                <img
+                  src={popup.mediaUrl}
+                  alt={popup.title || 'Popup'}
+                  className="w-full h-auto max-h-[70vh] object-contain"
+                />
+              )}
             </div>
           )}
 
