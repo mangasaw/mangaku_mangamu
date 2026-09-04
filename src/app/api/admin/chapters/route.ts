@@ -1,61 +1,47 @@
 import { NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 
-const prisma = new PrismaClient()
-
-// CREATE - Add new chapter
+// POST create new chapter
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    
-    const {
-      seriesId,
-      chapterNumber,
-      title,
-      images,
-    } = body
+    const { seriesId, chapterNumber, title, images, isPremium } = body
 
-    // Validate required fields
     if (!seriesId || !chapterNumber || !images || images.length === 0) {
       return NextResponse.json(
-        { error: 'Missing required fields. seriesId, chapterNumber, and images are required' },
+        { error: 'Missing required fields' },
         { status: 400 }
       )
     }
 
     // Check if chapter already exists
-    const existingChapter = await prisma.chapter.findUnique({
+    const existing = await prisma.chapter.findUnique({
       where: {
         seriesId_chapterNumber: {
           seriesId,
-          chapterNumber: parseFloat(chapterNumber),
-        },
-      },
+          chapterNumber: parseFloat(chapterNumber)
+        }
+      }
     })
 
-    if (existingChapter) {
+    if (existing) {
       return NextResponse.json(
-        { error: 'Chapter with this number already exists for this series' },
+        { error: `Chapter ${chapterNumber} already exists` },
         { status: 409 }
       )
     }
 
-    // Create chapter in database
     const chapter = await prisma.chapter.create({
       data: {
         seriesId,
         chapterNumber: parseFloat(chapterNumber),
         title: title || null,
-        images: images,
-        isTakedown: false,
-      },
+        images,
+        isPremium: isPremium || false,
+      }
     })
 
-    return NextResponse.json({
-      success: true,
-      data: chapter,
-      message: 'Chapter created successfully',
-    })
+    return NextResponse.json({ chapter }, { status: 201 })
   } catch (error) {
     console.error('Error creating chapter:', error)
     return NextResponse.json(
@@ -65,34 +51,31 @@ export async function POST(request: Request) {
   }
 }
 
-// UPDATE - Update existing chapter
+// PUT update chapter
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
-    const { id, ...updateData } = body
+    const { id, chapterNumber, title, images, isPremium, isTakedown } = body
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Chapter ID is required' },
+        { error: 'Chapter ID required' },
         { status: 400 }
       )
     }
 
-    // If updating chapterNumber, convert to float
-    if (updateData.chapterNumber) {
-      updateData.chapterNumber = parseFloat(updateData.chapterNumber)
-    }
-
     const chapter = await prisma.chapter.update({
       where: { id },
-      data: updateData,
+      data: {
+        ...(chapterNumber !== undefined && { chapterNumber: parseFloat(chapterNumber) }),
+        ...(title !== undefined && { title }),
+        ...(images !== undefined && { images }),
+        ...(isPremium !== undefined && { isPremium }),
+        ...(isTakedown !== undefined && { isTakedown }),
+      }
     })
 
-    return NextResponse.json({
-      success: true,
-      data: chapter,
-      message: 'Chapter updated successfully',
-    })
+    return NextResponse.json({ chapter })
   } catch (error) {
     console.error('Error updating chapter:', error)
     return NextResponse.json(
@@ -102,7 +85,7 @@ export async function PUT(request: Request) {
   }
 }
 
-// DELETE - Delete chapter
+// DELETE chapter
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -110,20 +93,16 @@ export async function DELETE(request: Request) {
 
     if (!id) {
       return NextResponse.json(
-        { error: 'Chapter ID is required' },
+        { error: 'Chapter ID required' },
         { status: 400 }
       )
     }
 
-    // Delete chapter
     await prisma.chapter.delete({
-      where: { id },
+      where: { id }
     })
 
-    return NextResponse.json({
-      success: true,
-      message: 'Chapter deleted successfully',
-    })
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting chapter:', error)
     return NextResponse.json(

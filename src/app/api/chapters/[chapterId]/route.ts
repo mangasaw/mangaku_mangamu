@@ -1,22 +1,44 @@
 import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
+// GET chapter details
 export async function GET(
   request: Request,
   { params }: { params: { chapterId: string } }
 ) {
-  // Mock chapter detail
-  const mockChapter = {
-    id: params.chapterId,
-    seriesId: '1',
-    chapterNumber: 1,
-    title: 'Chapter 1',
-    images: Array.from({ length: 20 }, (_, i) => 
-      `/images/chapter-${params.chapterId}/page-${i + 1}.jpg`
-    ),
-    isTakedown: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }
+  try {
+    const chapter = await prisma.chapter.findUnique({
+      where: { id: params.chapterId },
+      include: {
+        series: {
+          select: {
+            id: true,
+            title: true,
+            coverImage: true,
+          }
+        }
+      }
+    })
 
-  return NextResponse.json({ data: mockChapter })
+    if (!chapter) {
+      return NextResponse.json(
+        { error: 'Chapter not found' },
+        { status: 404 }
+      )
+    }
+
+    // Increment view count
+    await prisma.chapter.update({
+      where: { id: params.chapterId },
+      data: { views: { increment: 1 } }
+    })
+
+    return NextResponse.json({ chapter })
+  } catch (error) {
+    console.error('Error fetching chapter:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch chapter' },
+      { status: 500 }
+    )
+  }
 }
