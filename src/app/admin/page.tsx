@@ -1,6 +1,13 @@
+'use client'
+
 import Link from 'next/link'
+import { signOut } from 'next-auth/react'
 
 export default function AdminDashboard() {
+  const handleLogout = () => {
+    signOut({ callbackUrl: '/login' })
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Admin Navigation - Mobile responsive */}
@@ -33,7 +40,7 @@ export default function AdminDashboard() {
               <Link href="/" className="text-gray-300 hover:text-white text-xs sm:text-sm whitespace-nowrap">
                 View Site
               </Link>
-              <button className="text-gray-300 hover:text-white text-xs sm:text-sm whitespace-nowrap">
+              <button onClick={handleLogout} className="text-gray-300 hover:text-white text-xs sm:text-sm whitespace-nowrap">
                 Logout
               </button>
             </div>

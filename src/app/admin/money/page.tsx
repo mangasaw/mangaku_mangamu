@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { signOut } from 'next-auth/react'
 
 type TabType = 'popup' | 'ads'
 
@@ -39,6 +40,10 @@ export default function MoneyPage() {
   const [editingPopup, setEditingPopup] = useState<Popup | null>(null)
   const [editingAd, setEditingAd] = useState<Ad | null>(null)
   const [uploading, setUploading] = useState(false)
+
+  const handleLogout = () => {
+    signOut({ callbackUrl: '/login' })
+  }
 
   // Form states for Popup
   const [popupForm, setPopupForm] = useState({
@@ -299,7 +304,7 @@ export default function MoneyPage() {
               <Link href="/" className="text-gray-300 hover:text-white text-xs sm:text-sm whitespace-nowrap">
                 View Site
               </Link>
-              <button className="text-gray-300 hover:text-white text-xs sm:text-sm whitespace-nowrap">
+              <button onClick={handleLogout} className="text-gray-300 hover:text-white text-xs sm:text-sm whitespace-nowrap">
                 Logout
               </button>
             </div>
