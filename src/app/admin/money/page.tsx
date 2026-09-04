@@ -38,6 +38,7 @@ export default function MoneyPage() {
   const [showAdForm, setShowAdForm] = useState(false)
   const [editingPopup, setEditingPopup] = useState<Popup | null>(null)
   const [editingAd, setEditingAd] = useState<Ad | null>(null)
+  const [uploading, setUploading] = useState(false)
 
   // Form states for Popup
   const [popupForm, setPopupForm] = useState({
@@ -237,6 +238,35 @@ export default function MoneyPage() {
     })
   }
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await res.json()
+      
+      if (res.ok && data.url) {
+        setPopupForm({ ...popupForm, mediaUrl: data.url })
+        alert('File berhasil diupload!')
+      } else {
+        alert('Gagal upload file: ' + (data.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error uploading file:', error)
+      alert('Gagal upload file')
+    }
+    setUploading(false)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Admin Navigation */}
@@ -380,18 +410,62 @@ export default function MoneyPage() {
                       </select>
                     </div>
 
-                    <div>
+                    <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Media URL *
                       </label>
-                      <input
-                        type="url"
-                        value={popupForm.mediaUrl}
-                        onChange={(e) => setPopupForm({ ...popupForm, mediaUrl: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                        placeholder="https://example.com/image.jpg"
-                        required
-                      />
+                      <div className="space-y-3">
+                        {/* File Upload */}
+                        <div>
+                          <label className="block">
+                            <div className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:border-indigo-500 transition-colors">
+                              <div className="text-center">
+                                <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                  <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                                <p className="mt-2 text-sm text-gray-600">
+                                  {uploading ? 'Uploading...' : 'Click to upload file'}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  PNG, JPG, WEBP, GIF, MP4, WEBM
+                                </p>
+                              </div>
+                              <input
+                                type="file"
+                                onChange={handleFileUpload}
+                                accept="image/*,video/mp4,video/webm"
+                                className="hidden"
+                                disabled={uploading}
+                              />
+                            </div>
+                          </label>
+                        </div>
+
+                        {/* Or Manual URL */}
+                        <div className="relative">
+                          <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-gray-300"></div>
+                          </div>
+                          <div className="relative flex justify-center text-sm">
+                            <span className="px-2 bg-white text-gray-500">atau masukkan URL</span>
+                          </div>
+                        </div>
+
+                        <input
+                          type="text"
+                          value={popupForm.mediaUrl}
+                          onChange={(e) => setPopupForm({ ...popupForm, mediaUrl: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                          placeholder="https://example.com/image.jpg atau /uploads/popups/file.webp"
+                          required
+                        />
+                        
+                        {popupForm.mediaUrl && (
+                          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                            ✓ Media URL: {popupForm.mediaUrl}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div>
