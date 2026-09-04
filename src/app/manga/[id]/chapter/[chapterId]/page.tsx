@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { MangaPage } from '@/components/OptimizedImage'
 import { useImagePreloader } from '@/components/LazyLoad'
+import { useReadingMode } from '@/contexts/ReadingModeContext'
+import { ReadingModeSelector } from '@/components/ReadingModeSelector'
 
 export default function ChapterReaderPage({ 
   params 
@@ -13,6 +15,8 @@ export default function ChapterReaderPage({
   const [currentPage, setCurrentPage] = useState(1)
   const [chapter, setChapter] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [showSettings, setShowSettings] = useState(false)
+  const { mode } = useReadingMode()
 
   // Fetch chapter data
   useEffect(() => {
@@ -90,6 +94,99 @@ export default function ChapterReaderPage({
 
   const totalPages = chapter.images?.length || 0
 
+  // Render content based on reading mode
+  const renderContent = () => {
+    if (mode === 'horizontal') {
+      return (
+        <div className="flex overflow-x-auto snap-x snap-mandatory h-screen">
+          {chapter.images?.map((imageUrl: string, i: number) => (
+            <div 
+              key={i}
+              data-page={i + 1}
+              className="flex-shrink-0 w-full h-full snap-center flex items-center justify-center bg-black"
+            >
+              <MangaPage
+                src={imageUrl}
+                alt={`Page ${i + 1}`}
+                pageNumber={i + 1}
+                priority={i < 2}
+              />
+            </div>
+          ))}
+        </div>
+      )
+    }
+    
+    if (mode === 'webtoon') {
+      return (
+        <div className="max-w-full mx-auto bg-black">
+          <div className="space-y-0">
+            {chapter.images?.map((imageUrl: string, i: number) => (
+              <div 
+                key={i}
+                data-page={i + 1}
+                className="w-full"
+              >
+                <MangaPage
+                  src={imageUrl}
+                  alt={`Page ${i + 1}`}
+                  pageNumber={i + 1}
+                  priority={i < 2}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+    
+    // Default: vertical
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="space-y-2">
+          {chapter.images?.map((imageUrl: string, i: number) => (
+            <div 
+              key={i}
+              data-page={i + 1}
+              className="bg-gray-900 rounded-lg overflow-hidden"
+            >
+              <MangaPage
+                src={imageUrl}
+                alt={`Page ${i + 1}`}
+                pageNumber={i + 1}
+                priority={i < 2}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Navigation */}
+        <div className="mt-8 flex items-center justify-between bg-gray-900 rounded-lg p-4">
+          <Link
+            href={`/manga/${params.id}/chapter/${parseInt(params.chapterId) - 1}`}
+            className="px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700"
+          >
+            Previous Chapter
+          </Link>
+          
+          <Link
+            href={`/manga/${params.id}`}
+            className="px-6 py-2 border border-gray-700 text-white rounded hover:bg-gray-800"
+          >
+            Chapter List
+          </Link>
+          
+          <Link
+            href={`/manga/${params.id}/chapter/${parseInt(params.chapterId) + 1}`}
+            className="px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+          >
+            Next Chapter
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-black">
       {/* Reader Header */}
@@ -115,59 +212,28 @@ export default function ChapterReaderPage({
               <span className="text-sm text-gray-400">
                 Page {currentPage} / {totalPages}
               </span>
-              <button className="px-3 py-1 bg-indigo-600 rounded hover:bg-indigo-700 text-sm">
-                Download
+              <button 
+                onClick={() => setShowSettings(!showSettings)}
+                className="px-3 py-1 bg-gray-800 rounded hover:bg-gray-700 text-sm"
+              >
+                ⚙️ Settings
               </button>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Settings Panel */}
+      {showSettings && (
+        <div className="fixed top-16 right-4 z-40">
+          <ReadingModeSelector />
+        </div>
+      )}
+
       {/* Reader Content */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="space-y-2">
-          {chapter.images?.map((imageUrl: string, i: number) => (
-            <div 
-              key={i}
-              data-page={i + 1}
-              className="bg-gray-900 rounded-lg overflow-hidden"
-            >
-              <MangaPage
-                src={imageUrl}
-                alt={`Page ${i + 1}`}
-                pageNumber={i + 1}
-                priority={i < 2} // Prioritize first 2 pages
-              />
-            </div>
-          ))}
-        </div>
+      {renderContent()}
 
-        {/* Navigation */}
-        <div className="mt-8 flex items-center justify-between bg-gray-900 rounded-lg p-4">
-          <Link
-            href={`/manga/${params.id}/chapter/${parseInt(params.chapterId) - 1}`}
-            className="px-6 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 disabled:opacity-50"
-          >
-            Previous Chapter
-          </Link>
-          
-          <Link
-            href={`/manga/${params.id}`}
-            className="px-6 py-2 border border-gray-700 text-white rounded hover:bg-gray-800"
-          >
-            Chapter List
-          </Link>
-          
-          <Link
-            href={`/manga/${params.id}/chapter/${parseInt(params.chapterId) + 1}`}
-            className="px-6 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-          >
-            Next Chapter
-          </Link>
-        </div>
-      </div>
-
-      {/* Reading Progress Auto-save indicator */}
+      {/* Reading Progress indicator */}
       <div className="fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg text-sm">
         {loadedCount > 0 && `Preloading ${loadedCount}/3...`}
       </div>
