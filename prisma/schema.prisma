@@ -13,6 +13,21 @@ datasource db {
 enum UserRole {
   USER
   ADMIN
+  PREMIUM
+}
+
+enum SubscriptionTier {
+  FREE
+  BASIC
+  PREMIUM
+  VIP
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  TRIAL
 }
 
 model User {
@@ -21,12 +36,20 @@ model User {
   username      String    @unique
   password      String
   role          UserRole  @default(USER)
+  avatar        String?
+  bio           String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
   library       Library[]
   downloadTokens DownloadToken[]
   sessions       UserSession[]
+  comments      Comment[]
+  ratings       Rating[]
+  notifications Notification[]
+  subscriptions Subscription[]
+  donations     Donation[]
+  readingHistory ReadingHistory[]
   
   @@map("users")
 }
@@ -42,13 +65,22 @@ model Series {
   status                String    // ongoing, completed, hiatus
   licenseStatus         String    // original, partnership, licensed
   allowOfflineDownload  Boolean   @default(false)
+  averageRating         Float     @default(0)
+  totalRatings          Int       @default(0)
+  totalViews            Int       @default(0)
+  isPremium             Boolean   @default(false)
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
   
   chapters              Chapter[]
   library               Library[]
+  ratings               Rating[]
+  notifications         Notification[]
   
   @@map("series")
+  @@index([status])
+  @@index([averageRating])
+  @@index([totalViews])
 }
 
 model Chapter {
@@ -58,15 +90,20 @@ model Chapter {
   title         String?
   images        String[]  // Array of image URLs
   isTakedown    Boolean   @default(false)
+  isPremium     Boolean   @default(false)
+  views         Int       @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
   series        Series    @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   library       Library[]
   downloadTokens DownloadToken[]
+  comments      Comment[]
+  readingHistory ReadingHistory[]
   
   @@map("chapters")
   @@unique([seriesId, chapterNumber])
+  @@index([seriesId])
 }
 
 model Library {
@@ -178,4 +215,141 @@ enum MediaType {
   IMAGE
   GIF
   VIDEO
+}
+
+// Notification System
+enum NotificationType {
+  NEW_CHAPTER
+  SERIES_COMPLETED
+  COMMENT_REPLY
+  SYSTEM
+  PROMOTION
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  userId      String
+  type        NotificationType
+  title       String
+  message     String           @db.Text
+  seriesId    String?
+  chapterId   String?
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  series      Series?          @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+// Comments & Ratings
+model Comment {
+  id          String    @id @default(uuid())
+  userId      String
+  chapterId   String
+  content     String    @db.Text
+  likes       Int       @default(0)
+  isEdited    Boolean   @default(false)
+  isDeleted   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapter     Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  
+  @@map("comments")
+  @@index([chapterId, createdAt])
+  @@index([userId])
+}
+
+model Rating {
+  id          String    @id @default(uuid())
+  userId      String
+  seriesId    String
+  rating      Int       // 1-5 stars
+  review      String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  series      Series    @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  
+  @@map("ratings")
+  @@unique([userId, seriesId])
+  @@index([seriesId])
+}
+
+// Premium & Subscription
+model Subscription {
+  id          String              @id @default(uuid())
+  userId      String
+  tier        SubscriptionTier
+  status      SubscriptionStatus
+  startDate   DateTime            @default(now())
+  endDate     DateTime
+  autoRenew   Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("subscriptions")
+  @@index([userId, status])
+  @@index([endDate])
+}
+
+// Donations
+model Donation {
+  id          String    @id @default(uuid())
+  userId      String
+  amount      Decimal   @db.Decimal(10, 2)
+  currency    String    @default("USD")
+  message     String?   @db.Text
+  isAnonymous Boolean   @default(false)
+  status      String    // pending, completed, failed
+  paymentId   String?
+  createdAt   DateTime  @default(now())
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("donations")
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// Reading History
+model ReadingHistory {
+  id          String    @id @default(uuid())
+  userId      String
+  chapterId   String
+  seriesId    String
+  readAt      DateTime  @default(now())
+  duration    Int?      // seconds spent reading
+  completed   Boolean   @default(false)
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chapter     Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  
+  @@map("reading_history")
+  @@index([userId, readAt])
+  @@index([chapterId])
+}
+
+// User Preferences (for reading modes, gestures, etc)
+model UserPreference {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  readingMode     String    @default("vertical") // vertical, horizontal, double-page
+  autoNext        Boolean   @default(true)
+  gesturesEnabled Boolean   @default(true)
+  theme           String    @default("light")
+  fontSize        Int       @default(16)
+  notifications   Json      @default("{}")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("user_preferences")
 }
